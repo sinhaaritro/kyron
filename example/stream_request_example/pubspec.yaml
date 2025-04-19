@@ -1,0 +1,16 @@
+name: stream_request_example
+description: Demonstrates stream request/handler communication using the Kyron mediator.
+publish_to: 'none' # Prevent accidental publishing
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  # When running this example from within the kyron package structure:
+  kyron:
+    path: ../../
+  logging: ^1.3.0 # Kyron uses logging, useful to see output
+  async: ^2.11.0 # For StreamGroup.merge to handle concurrent streams easily
+
+dev_dependencies:
+  lints: ^4.0.0
