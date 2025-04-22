@@ -15,7 +15,6 @@ export 'src/kyron_interface.dart';
 // export 'src/pipeline_context.dart';
 
 // Notification Interfaces & Types
-export 'src/notification.dart';
 export 'src/notification_handler.dart';
 export 'src/notification_order.dart';
 

@@ -36,6 +36,9 @@ void main() {
   late MockBehavior mockBehavior1;
   late MockBehavior mockBehavior2;
   late MockSimpleNotificationHandler mockNotificationHandler;
+  late MockStringNotificationHandler mockStringHandler;
+  late MockIntNotificationHandler mockIntHandler;
+  late MockCustomObjectHandler mockCustomObjectHandler;
 
   // OUTER setUp: Initializes mocks and performs general setup
   setUp(() {
@@ -48,6 +51,9 @@ void main() {
     mockBehavior1 = MockBehavior();
     mockBehavior2 = MockBehavior();
     mockNotificationHandler = MockSimpleNotificationHandler();
+    mockStringHandler = MockStringNotificationHandler();
+    mockIntHandler = MockIntNotificationHandler();
+    mockCustomObjectHandler = MockCustomObjectHandler();
 
     // THEN Register Fallback Values using initialized mocks
     registerFallbackValue(SimpleRequest);
@@ -56,6 +62,14 @@ void main() {
     registerFallbackValue(const SimpleRequest('fallback'));
     registerFallbackValue(const SimpleStreamRequest(0));
     registerFallbackValue(const SimpleNotification('fallback'));
+    registerFallbackValue('fallback_string');
+    registerFallbackValue(0);
+    registerFallbackValue(const CustomPlainObject(0, 'fallback'));
+    registerFallbackValue(const UnhandledObject('fallback'));
+    registerFallbackValue(mockStringHandler);
+    registerFallbackValue(mockIntHandler);
+    registerFallbackValue(mockCustomObjectHandler);
+    registerFallbackValue(<List<NotificationHandlerRegistration>>[]);
     registerFallbackValue(<BehaviorRegistration>[]);
     registerFallbackValue(<NotificationHandlerRegistration>[]);
     registerFallbackValue(PipelineContext(0));
@@ -70,6 +84,9 @@ void main() {
     registerFallbackValue(() => MockSimpleRequestHandler());
     registerFallbackValue(() => MockBehavior());
     registerFallbackValue(() => MockSimpleNotificationHandler());
+    registerFallbackValue(() => mockStringHandler);
+    registerFallbackValue(() => mockIntHandler);
+    registerFallbackValue(() => mockCustomObjectHandler);
 
     // THEN Setup Kyron instance
     kyron = Kyron(
@@ -390,6 +407,7 @@ void main() {
             order: order,
           );
           // Assert
+          // Verify registry call with the correct type argument
           verify(
             () => mockRegistry.registerNotificationHandler<SimpleNotification>(
               factory,
@@ -421,6 +439,121 @@ void main() {
                 'message',
                 contains('Notification Registry Boom!'),
               ),
+            ),
+          );
+        },
+      );
+
+      test(
+        'should handle publishing plain String if handler registered',
+        () async {
+          // Arrange
+          const message = 'Plain string event';
+          stringFactory() => mockStringHandler;
+          final regs = [
+            (factory: stringFactory, order: 0)
+                as NotificationHandlerRegistration,
+          ];
+
+          when(
+            () => mockRegistry.findNotificationHandlerRegistrations(String),
+          ).thenReturn(regs); // Stub registry for String type
+          when(
+            () => mockDispatcher.dispatch<String>(
+              message,
+              regs,
+              correlationId: any(named: 'correlationId'),
+            ),
+          ).thenAnswer((_) async {}); // Stub dispatcher for String type
+
+          // Act
+          await kyron.publish<String>(message); // Explicit type for clarity
+
+          // Assert
+          verify(
+            () => mockRegistry.findNotificationHandlerRegistrations(String),
+          ).called(1);
+          verify(
+            () => mockDispatcher.dispatch<String>(
+              message,
+              regs,
+              correlationId: any(named: 'correlationId'),
+            ),
+          ).called(1);
+        },
+      );
+
+      test(
+        'should handle publishing custom plain object if handler registered',
+        () async {
+          // Arrange
+          const customObject = CustomPlainObject(42, 'data');
+          customFactory() => mockCustomObjectHandler;
+          final regs = [
+            (factory: customFactory, order: 0)
+                as NotificationHandlerRegistration,
+          ];
+
+          when(
+            () => mockRegistry.findNotificationHandlerRegistrations(
+              CustomPlainObject,
+            ),
+          ).thenReturn(regs); // Stub registry for CustomPlainObject type
+          when(
+            () => mockDispatcher.dispatch<CustomPlainObject>(
+              customObject,
+              regs,
+              correlationId: any(named: 'correlationId'),
+            ),
+          ).thenAnswer(
+            (_) async {},
+          ); // Stub dispatcher for CustomPlainObject type
+
+          // Act
+          await kyron.publish(customObject); // Type inferred
+
+          // Assert
+          verify(
+            () => mockRegistry.findNotificationHandlerRegistrations(
+              CustomPlainObject,
+            ),
+          ).called(1);
+          verify(
+            () => mockDispatcher.dispatch<CustomPlainObject>(
+              customObject,
+              regs,
+              correlationId: any(named: 'correlationId'),
+            ),
+          ).called(1);
+        },
+      );
+
+      test(
+        'should complete silently if publishing an object with no registered handlers',
+        () async {
+          // Arrange
+          const unhandled = UnhandledObject('no handler for this');
+          // Default registry stub returns []
+          when(
+            () => mockRegistry.findNotificationHandlerRegistrations(
+              UnhandledObject,
+            ),
+          ).thenReturn([]); // Explicitly stub empty list
+
+          // Act & Assert
+          await expectLater(kyron.publish(unhandled), completes);
+
+          // Assert registry was checked but dispatcher was not called
+          verify(
+            () => mockRegistry.findNotificationHandlerRegistrations(
+              UnhandledObject,
+            ),
+          ).called(1);
+          verifyNever(
+            () => mockDispatcher.dispatch(
+              any(),
+              any(),
+              correlationId: any(named: 'correlationId'),
             ),
           );
         },
@@ -1157,7 +1290,7 @@ void main() {
     });
 
     // ** GROUP: publish **
-    group('publish', () {
+    group('publish<TNotification>', () {
       // Arrange (variables needed across tests)
       const notification = SimpleNotification('Event');
       factory() => mockNotificationHandler;
@@ -1185,9 +1318,12 @@ void main() {
       test(
         'should find notification handler registrations using registry',
         () async {
-          // Arrange (in setUp)
+          // Arrange
+          const notification = SimpleNotification('Event');
+
           // Act
           await kyron.publish(notification);
+
           // Assert
           verify(
             () => mockRegistry.findNotificationHandlerRegistrations(
@@ -1196,19 +1332,25 @@ void main() {
           ).called(1);
         },
       );
+
       test('should return early if no handlers are found', () async {
         // Arrange
+        const notification = SimpleNotification('nothing');
+        // Default registry stub returns []
         when(
           () => mockRegistry.findNotificationHandlerRegistrations(
             SimpleNotification,
           ),
         ).thenReturn([]);
+
         // Act
         await kyron.publish(notification);
+
         // Assert
         verifyNever(
           () => mockDispatcher.dispatch(
-            any(),
+            // Use dispatch<dynamic> if type is unknown or not verifiable here
+            any(), // Match any object
             any(),
             correlationId: any(named: 'correlationId'),
           ),
@@ -1217,6 +1359,7 @@ void main() {
 
       test('should sort handler registrations by order', () async {
         // Arrange
+        const notification = SimpleNotification('Sort test');
         factory1() => mockNotificationHandler;
         factory2() => mockNotificationHandler;
         final regUnsorted = [
@@ -1228,8 +1371,9 @@ void main() {
             SimpleNotification,
           ),
         ).thenReturn(regUnsorted);
+        // Stub the dispatch call with the specific type
         when(
-          () => mockDispatcher.dispatch(
+          () => mockDispatcher.dispatch<SimpleNotification>(
             notification,
             any(that: isA<List<NotificationHandlerRegistration>>()),
             correlationId: any(named: 'correlationId'),
@@ -1240,9 +1384,10 @@ void main() {
         await kyron.publish(notification);
 
         // Assert
+        // Capture the sorted list passed to the dispatcher
         final captured =
             verify(
-              () => mockDispatcher.dispatch(
+              () => mockDispatcher.dispatch<SimpleNotification>(
                 notification,
                 captureAny(),
                 correlationId: any(named: 'correlationId'),
@@ -1252,19 +1397,32 @@ void main() {
         final capturedList =
             captured.first as List<NotificationHandlerRegistration>;
         expect(capturedList.length, 2);
-        expect(capturedList[0].order, -5);
-        expect(capturedList[1].order, 10);
+        expect(
+          capturedList[0].order,
+          -5,
+          reason: 'Should be sorted ascending by order',
+        );
+        expect(
+          capturedList[1].order,
+          10,
+          reason: 'Should be sorted ascending by order',
+        );
       });
 
       test(
         'should delegate dispatching to the NotificationDispatcher',
         () async {
-          // Arrange (in setUp)
+          // Arrange
+          const notification = SimpleNotification('Event');
+          // handlerRegs already set up in outer setUp
+
           // Act
           await kyron.publish(notification);
+
           // Assert
+          // Verify dispatch with the specific type
           verify(
-            () => mockDispatcher.dispatch(
+            () => mockDispatcher.dispatch<SimpleNotification>(
               notification,
               handlerRegs,
               correlationId: any(named: 'correlationId'),
@@ -1272,34 +1430,50 @@ void main() {
           ).called(1);
         },
       );
+
       test(
         'should pass notification and sorted registrations to dispatcher',
         () async {
-          // Arrange (in setUp)
+          // Arrange
+          const notification = SimpleNotification('Event');
+          // handlerRegs already set up in outer setUp
+
           // Act
           await kyron.publish(notification);
+
           // Assert
-          verify(
-            () => mockDispatcher.dispatch(
-              notification,
-              handlerRegs,
-              correlationId: any(named: 'correlationId'),
-            ),
-          ).called(1);
+          // Verify dispatch with the specific type and captured list
+          final captured =
+              verify(
+                () => mockDispatcher.dispatch<SimpleNotification>(
+                  notification, // Verify specific notification object
+                  captureAny(), // Capture the list
+                  correlationId: any(named: 'correlationId'),
+                ),
+              ).captured;
+          expect(
+            captured.single,
+            equals(handlerRegs),
+            reason: 'Should pass the correct registrations list',
+          );
         },
       );
+
       test(
         'should rethrow AggregateException if dispatcher throws it',
         () async {
           // Arrange
+          const notification = SimpleNotification('Error test');
           final exception = AggregateException([]);
+          // Stub dispatch with the specific type
           when(
-            () => mockDispatcher.dispatch(
-              any(),
+            () => mockDispatcher.dispatch<SimpleNotification>(
+              any(that: isA<SimpleNotification>()),
               any(),
               correlationId: any(named: 'correlationId'),
             ),
           ).thenThrow(exception);
+
           // Act & Assert
           await expectLater(
             () => kyron.publish(notification),
@@ -1307,20 +1481,25 @@ void main() {
           );
         },
       );
+
       test('should handle other dispatcher errors gracefully', () async {
         // Arrange
-        final error = Exception('Fail');
+        const notification = SimpleNotification('Other error test');
+        final error = Exception('Dispatcher Fail');
+        // Stub dispatch with the specific type
         when(
-          () => mockDispatcher.dispatch(
-            any(),
+          () => mockDispatcher.dispatch<SimpleNotification>(
+            any(that: isA<SimpleNotification>()),
             any(),
             correlationId: any(named: 'correlationId'),
           ),
         ).thenThrow(error);
+
         // Act & Assert
         await expectLater(kyron.publish(notification), completes);
+        // Verify dispatch was still called
         verify(
-          () => mockDispatcher.dispatch(
+          () => mockDispatcher.dispatch<SimpleNotification>(
             notification,
             handlerRegs,
             correlationId: any(named: 'correlationId'),

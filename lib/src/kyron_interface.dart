@@ -4,7 +4,6 @@ import 'dart:async';
 
 import 'package:kyron/src/pipeline_component_info.dart';
 
-import 'notification.dart';
 import 'request.dart';
 
 /// Defines the contract for the Mediator.
@@ -23,13 +22,14 @@ abstract class KyronInterface {
   /// - Returns: A Stream emitting response objects [TResponse].
   Stream<TResponse> stream<TResponse>(StreamRequest<TResponse> request);
 
-  /// Publishes a notification event to all registered handlers for that
-  /// specific notification type. Execution order depends on registration order
+  /// Publishes an event/message object to all registered handlers for that
+  /// specific object type. Execution order depends on registration order
   /// (if specified) and the dispatcher implementation.
   ///
-  /// - [notification]: The notification object implementing [Notification].
-  /// - Returns: A Future that completes when all handlers have been invoked.
-  Future<void> publish(Notification notification);
+  /// - [notification]: The event/message object of type [TNotification] to publish.
+  /// - Returns: A Future that completes when all handlers have been invoked
+  ///   (subject to the configured error strategy).
+  Future<void> publish<TNotification>(TNotification notification);
 
   /// Calculates the planned execution pipeline for a given request,
   /// showing the sequence of behaviors and the final handler.

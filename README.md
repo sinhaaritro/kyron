@@ -17,20 +17,20 @@ concerns.
 ## Overview
 
 Kyron helps you build cleaner, more maintainable applications by decoupling the
-senders of requests and notifications from their handlers. It promotes adherence
+senders of requests and events/messages from their handlers. It promotes adherence
 to SOLID principles (especially SRP and OCP) and enables clean architecture
 designs.
 
 Kyron provides:
 
 - **Request/Response Handling:** Send a request object and get a single response
-  back asynchronously.
+  back asynchronously (`Request`, `RequestHandler`, `send`).
 - **Stream Request Handling:** Send a request and get a stream of responses
-  back.
-- **Notification Publishing:** Publish events (notifications) to multiple
+  back (`StreamRequest`, `StreamRequestHandler`, `stream`).
+- **Event/Message Publishing:** Publish events or messages of **any Dart type** to multiple
   handlers with configurable ordering (sequential/parallel phases) and error
-  handling.
-- **Pipeline Behaviors:** Intercept requests with middleware components
+  handling (`NotificationHandler`, `publish`).
+- **Pipeline Behaviors:** Intercept requests (`send`/`stream`) with middleware components
   (behaviors) to handle cross-cutting concerns like logging, validation,
   caching, authorization, timing, etc., without cluttering your core handler logic.
 - **Logging Integration:** Uses the standard `package:logging` for internal operations, allowing easy integration with application logging frameworks.
@@ -48,7 +48,7 @@ Kyron provides:
   single request's lifecycle. Recommended usage via extension methods for type safety.
 - **Stream Support:** Native handling for requests that produce multiple results
   over time (`StreamRequestHandler`).
-- **Configurable Notification Handling:** Decoupled event publishing to multiple
+- **Flexible Event/Message Handling:** Publish any object as an event or message. Decoupled publishing to multiple
   subscribers (handlers) with built-in support for sequential and parallel execution phases based on `NotificationOrder`. Configurable error handling (`NotificationErrorStrategy`, `AggregateException`).
 - **Minimal Dependencies:** Relies only on the core Dart SDK, `meta`, and `logging`.
 - **Testability:** Promotes handlers and behaviors that are easy to test in
@@ -195,24 +195,27 @@ try {
 }
 ```
 
-### 3. Notifications (`publish`)
+### 3. Events / Messages (`publish`)
 
-For events where the publisher doesn't need a direct response. Multiple handlers can subscribe.
+For events or messages where the publisher doesn't need a direct response. Multiple handlers can subscribe. Any Dart object can be published.
 
-- Define a class extending `Notification`.
-- Define handler classes extending `NotificationHandler<TNotification>`.
-- Register: `kyron.registerNotificationHandler<TNotification>(() => YourNotificationHandler(), order: ...);`.
+- Define your event/message class.
+- Define handler classes extending `NotificationHandler<TNotification>` where `TNotification` is the type of your event/message object.
+- Register handlers: `kyron.registerNotificationHandler<TNotification>(() => YourEventHandler(), order: ...);`.
   - Use `NotificationOrder` constants (`parallelEarly`, `sequentialDefault`, `parallelLate`) or specific integers to control execution phase and sequence.
-- Publish: `await kyron.publish(yourNotificationInstance)`.
+- Publish: `await kyron.publish(yourEventInstance)`. Use `kyron.publish<TNotification>(...)` for explicit type specification if needed.
 - Error handling depends on the `NotificationErrorStrategy` configured in the `Kyron` constructor (default is `continueOnError`). `collectErrors` strategy throws `AggregateException`.
 
 ```dart
 import 'package:kyron/kyron.dart';
 
-// Define Notification
-class TaskCompleted extends Notification { final String taskId; const TaskCompleted(this.taskId); }
+// Define Event/Message Object (Plain Dart Class)
+class TaskCompleted { 
+  final String taskId;
+  const TaskCompleted(this.taskId);
+}
 
-// Define Handlers
+// Define Handlers (Implement NotificationHandler<TaskCompleted>)
 class LogTaskCompletionHandler extends NotificationHandler<TaskCompleted> {
   @override Future<void> handle(TaskCompleted n) async { print('  Log: Task ${n.taskId} completed.'); }
 }
@@ -232,11 +235,20 @@ Future<void> main() async {
   kyron.registerNotificationHandler<TaskCompleted>(() => SendEmailHandler(), order: 20);        // Second
   kyron.registerNotificationHandler<TaskCompleted>(() => CleanupHandler(), order: 30);      // Third
 
-  print('\nPublishing TaskCompleted notification...');
-  await kyron.publish(TaskCompleted('TASK-XYZ'));
+  print('\nPublishing TaskCompleted event/message...');
+  await kyron.publish(TaskCompleted('TASK-XYZ')); // Publish the plain object
+  // Or: await kyron.publish<TaskCompleted>(TaskCompleted('TASK-XYZ'));
   print('\nSequential publishing complete.');
+
+  // Example: Publishing a simple string message
+  kyron.registerNotificationHandler<String>(() => MyStringHandler());
+  await kyron.publish("Hello World Event!");
 }
-```
+
+// Example handler for a String event
+class MyStringHandler extends NotificationHandler<String> {
+  @override Future<void> handle(String notification) async { print('  String Handler: Got "$notification"'); }
+}
 
 ### 4. Pipeline Behaviors
 
@@ -337,4 +349,4 @@ See the `/example` directory in the repository for more detailed, runnable examp
 - `request_handler_communication`: Basic `send` request/response flow.
 - `stream_request_example`: `stream` request/response flow with concurrency.
 - `pipeline_example`: Demonstrates multiple pipeline behaviors, context, ordering, applicability, and short-circuiting.
-- `notification_example`: Shows command handlers publishing notifications, and sequential vs. parallel notification handler execution.
+- `notification_example`: Shows command handlers publishing in event/message objects, and sequential vs. parallel handler execution.

@@ -709,7 +709,7 @@ void main() {
     group('Notification Handler Registration & Retrieval', () {
       group('registerNotificationHandler', () {
         test(
-          'should register a single handler factory for a notification type with default order (sequentialDefault)',
+          'should register a single handler factory for a message/event type with default order (parallelEarly)',
           () {
             // Arrange
             const notificationType = SimpleNotification;
@@ -726,9 +726,11 @@ void main() {
             expect(regs.first.factory, equals(factory));
             expect(
               regs.first.order,
-              equals(sequentialDefault),
+              equals(
+                NotificationOrder.parallelEarly,
+              ), // Check against the actual default
               reason:
-                  'Order should default to sequentialDefault ($sequentialDefault)',
+                  'Order should default to parallelEarly (${NotificationOrder.parallelEarly})',
             );
             expect(
               registry.registeredNotificationHandlerRegistrations,
@@ -738,13 +740,12 @@ void main() {
         );
 
         test(
-          'should register multiple handler factories for the same notification type',
+          'should register multiple handler factories for the same message/event type',
           () {
             // Arrange
             const notificationType = SimpleNotification;
             final factory1 = _simpleNotificationHandlerFactory;
-            factory2() =>
-                MockSimpleNotificationHandlerForTest(); // Different factory
+            factory2() => MockSimpleNotificationHandlerForTest();
 
             // Act
             registry.registerNotificationHandler<SimpleNotification>(factory1);
@@ -790,39 +791,36 @@ void main() {
           );
         });
 
-        test(
-          'should allow registering the same factory multiple times (though maybe logs warning)',
-          () {
-            // Arrange
-            const notificationType = SimpleNotification;
-            final factory = _simpleNotificationHandlerFactory;
+        test('should allow registering the same factory multiple times', () {
+          // Arrange
+          const notificationType = SimpleNotification;
+          final factory = _simpleNotificationHandlerFactory;
 
-            // Act
-            registry.registerNotificationHandler<SimpleNotification>(
-              factory,
-              order: 1,
-            );
-            registry.registerNotificationHandler<SimpleNotification>(
-              factory,
-              order: 2,
-            ); // Same factory again
+          // Act
+          registry.registerNotificationHandler<SimpleNotification>(
+            factory,
+            order: 1,
+          );
+          registry.registerNotificationHandler<SimpleNotification>(
+            factory,
+            order: 2,
+          );
 
-            // Assert
-            final regs = registry.findNotificationHandlerRegistrations(
-              notificationType,
-            );
-            expect(regs.length, 2, reason: 'Should register the factory twice');
-            expect(regs[0].factory, equals(factory));
-            expect(regs[1].factory, equals(factory));
-            expect(regs.map((r) => r.order), containsAll([1, 2]));
-            // Verify log warning is harder here
-          },
-        );
+          // Assert
+          final regs = registry.findNotificationHandlerRegistrations(
+            notificationType,
+          );
+          expect(regs.length, 2, reason: 'Should register the factory twice');
+          expect(regs[0].factory, equals(factory));
+          expect(regs[1].factory, equals(factory));
+          expect(regs.map((r) => r.order), containsAll([1, 2]));
+          // Verification of logging is complex in unit tests without a mock logger setup.
+        });
       });
 
       group('findNotificationHandlerRegistrations', () {
         test(
-          'should return an empty list for a notification type with no registered handlers',
+          'should return an empty list for a message/event type with no registered handlers',
           () {
             // Arrange
             const notificationType = SimpleNotification;
@@ -879,7 +877,7 @@ void main() {
               factory2,
               order: -5,
             );
-            // Register for another type to ensure isolation
+            // Register for another type (now also a plain class) to ensure isolation
             registry.registerNotificationHandler<OrderedNotification>(
               () => MockOrderedNotificationHandler(),
             );

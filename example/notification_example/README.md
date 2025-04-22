@@ -9,7 +9,7 @@ This example demonstrates how to use `Kyron.publish()` to send notifications and
     *   Two command/handler pairs are defined:
         *   `ProcessDataExportJobCommandSequential` -> `ProcessDataExportJobCommandHandlerSequential`: Simulates an export job and publishes a `DataExportCompletedNotificationSequential`.
         *   `ProcessDataExportJobCommandParallel` -> `ProcessDataExportJobCommandHandlerParallel`: Simulates an export job and publishes a `DataExportCompletedNotificationParallel`.
-    *   Two distinct notification types are defined: `DataExportCompletedNotificationSequential` and `DataExportCompletedNotificationParallel`. They both implement a common interface (`DataExportCompletedData`) which extends `Notification` to share the required data fields (jobId, userId, filePath).
+    *   Two distinct notification types are defined: `DataExportCompletedNotificationSequential` and `DataExportCompletedNotificationParallel`. They both implement a common interface (`DataExportCompletedData`) to share the required data fields (jobId, userId, filePath).
     *   Four notification handlers are defined generically (`Handler<T extends DataExportCompletedData>`) to handle the common data structure, representing post-export tasks: `UpdateExportRecordHandler`, `NotifyUserViaSignalRHandler`, `SendExportReadyEmailHandler`, `CleanupExportTempDataHandler`. Each handler simulates work with a `Future.delayed` and prints start/end logs.
 2.  **Registration:**
     *   The command handlers are registered. They require the `Kyron` instance to be injected so they can call `publish`.

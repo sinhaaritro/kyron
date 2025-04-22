@@ -6,7 +6,6 @@ import 'package:kyron/src/notification_order.dart';
 import 'package:logging/logging.dart';
 
 import 'exceptions.dart';
-import 'notification.dart';
 import 'notification_handler.dart';
 import 'pipeline_behavior.dart';
 import 'request.dart';
@@ -171,7 +170,23 @@ class KyronRegistry {
     }
   }
 
-  void registerNotificationHandler<TNotification extends Notification>(
+  /// Registers a factory function responsible for creating or providing a handler
+  /// for a specific message/event type ([TNotification]).
+  ///
+  /// Adds the handler factory and its associated execution order to the internal
+  /// storage, keyed by the [TNotification] type.
+  ///
+  /// See [Kyron.registerNotificationHandler] for a more detailed explanation of
+  /// handler factories, execution order ([NotificationOrder]), error handling,
+  /// and usage examples.
+  ///
+  /// **Generics:**
+  ///   - [TNotification]: The specific type of the message/event object.
+  ///
+  /// **Parameters:**
+  ///   - [handlerFactory]: A function that returns an instance of [NotificationHandler<TNotification>].
+  ///   - [order]: The execution order for this handler relative to others for the same type.
+  void registerNotificationHandler<TNotification>(
     NotificationHandler<TNotification> Function() handlerFactory, {
     int order = NotificationOrder.parallelEarly,
   }) {
@@ -236,6 +251,15 @@ class KyronRegistry {
     return applicable;
   }
 
+  /// Finds all registered handler factories and their associated orders for a
+  /// given message/event type.
+  ///
+  /// Used by the [NotificationDispatcher] to retrieve the components needed to
+  /// handle a published message/event object.
+  ///
+  /// - [notificationType]: The [Type] of the message/event object being published.
+  /// - Returns: A list of [NotificationHandlerRegistration] tuples (containing the factory and order)
+  ///   for the specified type, or an empty list if no handlers are registered for that type.
   List<NotificationHandlerRegistration> findNotificationHandlerRegistrations(
     Type notificationType,
   ) {

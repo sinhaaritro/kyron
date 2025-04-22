@@ -34,6 +34,15 @@ class MockOrderedNotificationHandler extends Mock
 class MockErrorNotificationHandler extends Mock
     implements NotificationHandler<ErrorNotification> {}
 
+class MockStringNotificationHandler extends Mock
+    implements NotificationHandler<String> {}
+
+class MockIntNotificationHandler extends Mock
+    implements NotificationHandler<int> {}
+
+class MockCustomObjectHandler extends Mock
+    implements NotificationHandler<CustomPlainObject> {}
+
 // Concrete Handlers for Integration Tests
 
 class ConcreteSimpleRequestHandler
@@ -194,7 +203,7 @@ StreamRequestHandler<TRequest, TResponse> Function() streamFactoryFor<
 }
 
 NotificationHandler<TNotification> Function() notificationFactoryFor<
-  TNotification extends Notification
+  TNotification
 >(NotificationHandler<TNotification> instance) {
   return () => instance;
 }

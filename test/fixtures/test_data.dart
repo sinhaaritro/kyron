@@ -59,17 +59,44 @@ class ShortCircuitStreamRequest extends StreamRequest<int> {
 
 // Notifications
 
-class SimpleNotification extends Notification {
+class SimpleNotification {
   final String message;
   const SimpleNotification(this.message);
 }
 
-class OrderedNotification extends Notification {
+class OrderedNotification {
   const OrderedNotification();
 }
 
-class ErrorNotification extends Notification {
+class ErrorNotification {
   const ErrorNotification();
+}
+
+class CustomPlainObject {
+  final int id;
+  final String value;
+
+  const CustomPlainObject(this.id, this.value);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CustomPlainObject &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          value == other.value;
+
+  @override
+  int get hashCode => id.hashCode ^ value.hashCode;
+
+  @override
+  String toString() => 'CustomPlainObject(id: $id, value: $value)';
+}
+
+// Used for testing publishing when no handler is registered
+class UnhandledObject {
+  final String description;
+  const UnhandledObject(this.description);
 }
 
 // Custom Exceptions

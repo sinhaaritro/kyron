@@ -67,10 +67,11 @@ void main() {
         () async {
           // Arrange
           final registrations = createRegs([]);
+          const notification = SimpleNotification('Test');
 
           // Act & Assert
           await expectLater(
-            dispatcher.dispatch(
+            dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -82,20 +83,19 @@ void main() {
 
       test('should execute a single registered handler successfully', () async {
         // Arrange
-        // Now this factory returns the stubbed handlerA instance
+        const notification = SimpleNotification('Test');
         final registrations = createRegs([
           (factory: handlerAFactory, order: 0),
         ]);
 
         // Act
-        await dispatcher.dispatch(
+        await dispatcher.dispatch<SimpleNotification>(
           notification,
           registrations,
           correlationId: correlationId,
         );
 
         // Assert
-        // This verify now works because the correct instance's handle was called
         verify(() => handlerA.handle(notification)).called(1);
       });
 
@@ -103,21 +103,20 @@ void main() {
         'should execute multiple registered handlers successfully in specified order',
         () async {
           // Arrange
-          // Factories return the correct instances
+          const notification = SimpleNotification('Test');
           final registrations = createRegs([
             (factory: handlerBFactory, order: 10), // B runs first
             (factory: handlerAFactory, order: 20), // A runs second
           ]);
 
           // Act
-          await dispatcher.dispatch(
+          await dispatcher.dispatch<SimpleNotification>(
             notification,
             registrations,
             correlationId: correlationId,
           );
 
           // Assert
-          // Verify works on the correct instances
           verifyInOrder([
             () => handlerB.handle(notification),
             () => handlerA.handle(notification),
@@ -129,10 +128,9 @@ void main() {
         'should execute remaining handlers if one handler throws an exception',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test');
           final error = Exception('Handler A Failed');
-          // Stub the correct instance
           when(() => handlerA.handle(notification)).thenThrow(error);
-          // Factories return the correct instances
           final registrations = createRegs([
             (factory: handlerAFactory, order: 10), // Throws
             (factory: handlerBFactory, order: 20), // Should still run
@@ -140,7 +138,7 @@ void main() {
 
           // Act
           await expectLater(
-            dispatcher.dispatch(
+            dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -149,7 +147,6 @@ void main() {
           );
 
           // Assert
-          // Verifications work on the correct instances
           verify(() => handlerA.handle(notification)).called(1);
           verify(() => handlerB.handle(notification)).called(1);
         },
@@ -159,13 +156,12 @@ void main() {
         'should execute remaining handlers if multiple handlers throw exceptions',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test');
           final errorA = Exception('Handler A Failed');
           final errorC = Exception('Handler C Failed');
-          // Stub the correct instances
           when(() => handlerA.handle(notification)).thenThrow(errorA);
           when(() => handlerC.handle(notification)).thenThrow(errorC);
 
-          // Factories return the correct instances
           final registrations = createRegs([
             (factory: handlerAFactory, order: 10), // Throws
             (factory: handlerBFactory, order: 20), // Runs
@@ -174,7 +170,7 @@ void main() {
 
           // Act
           await expectLater(
-            dispatcher.dispatch(
+            dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -183,7 +179,6 @@ void main() {
           );
 
           // Assert
-          // Verifications work on the correct instances
           verify(() => handlerA.handle(notification)).called(1);
           verify(() => handlerB.handle(notification)).called(1);
           verify(() => handlerC.handle(notification)).called(1);
@@ -194,17 +189,16 @@ void main() {
         'should complete normally even if handlers throw exceptions',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test');
           final errorA = Exception('Handler A Failed');
-          // Stub the correct instance
           when(() => handlerA.handle(notification)).thenThrow(errorA);
-          // Factory returns the correct instance
           final registrations = createRegs([
             (factory: handlerAFactory, order: 10),
           ]);
 
           // Act & Assert
           await expectLater(
-            dispatcher.dispatch(
+            dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -220,22 +214,19 @@ void main() {
         'should handle error during handler instantiation gracefully and continue',
         () async {
           // Arrange
-          // Define failing factory inline for clarity
+          const notification = SimpleNotification('Test');
           NotificationHandler<SimpleNotification> failingFactoryA() {
             throw Exception('Factory A Boom!');
           }
 
           final registrations = createRegs([
             (factory: failingFactoryA, order: 10), // Fails instantiation
-            (
-              factory: handlerBFactory,
-              order: 20,
-            ), // Should still run (factory returns correct instance)
+            (factory: handlerBFactory, order: 20), // Should still run
           ]);
 
           // Act
           await expectLater(
-            dispatcher.dispatch(
+            dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -244,9 +235,7 @@ void main() {
           );
 
           // Assert
-          // handlerA was never created or called (verify original instance)
           verifyNever(() => handlerA.handle(notification));
-          // Verify handlerB (original instance) was called via its factory
           verify(() => handlerB.handle(notification)).called(1);
         },
       );
@@ -281,13 +270,14 @@ void main() {
         'should execute a single handler successfully and complete normally',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test');
           final registrations = createRegs([
             (factory: handlerAFactory, order: 0),
           ]);
 
           // Act & Assert
           await expectLater(
-            dispatcher.dispatch(
+            dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -302,6 +292,7 @@ void main() {
         'should execute multiple handlers successfully and complete normally',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test');
           final registrations = createRegs([
             (factory: handlerBFactory, order: 10),
             (factory: handlerAFactory, order: 20),
@@ -309,7 +300,7 @@ void main() {
 
           // Act & Assert
           await expectLater(
-            dispatcher.dispatch(
+            dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -327,22 +318,17 @@ void main() {
         'should execute all handlers even if one throws, then throw AggregateException',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test');
           final errorA = Exception('Handler A Failed');
           when(() => handlerA.handle(notification)).thenThrow(errorA);
           final registrations = createRegs([
-            (
-              factory: handlerAFactory,
-              order: 10,
-            ), // Throws (factory returns stubbed instance)
-            (
-              factory: handlerBFactory,
-              order: 20,
-            ), // Should still run (factory returns stubbed instance)
+            (factory: handlerAFactory, order: 10), // Throws
+            (factory: handlerBFactory, order: 20), // Should still run
           ]);
 
           // Act & Assert
           await expectLater(
-            () => dispatcher.dispatch(
+            () => dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -357,7 +343,6 @@ void main() {
             reason: 'Should throw AggregateException with the error from A',
           );
 
-          // Verify both were still attempted (on the correct instances)
           verify(() => handlerA.handle(notification)).called(1);
           verify(() => handlerB.handle(notification)).called(1);
         },
@@ -367,6 +352,7 @@ void main() {
         'should execute all handlers even if multiple throw, then throw AggregateException with all errors',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test');
           final errorA = Exception('Handler A Failed');
           final errorC = Exception('Handler C Failed');
           when(() => handlerA.handle(notification)).thenThrow(errorA);
@@ -379,7 +365,7 @@ void main() {
 
           // Act & Assert
           await expectLater(
-            () => dispatcher.dispatch(
+            () => dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -394,7 +380,6 @@ void main() {
             reason: 'Should throw AggregateException with errors from A and C',
           );
 
-          // Verify all were attempted
           verify(() => handlerA.handle(notification)).called(1);
           verify(() => handlerB.handle(notification)).called(1);
           verify(() => handlerC.handle(notification)).called(1);
@@ -405,6 +390,7 @@ void main() {
         'should throw AggregateException if handler instantiation fails',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test');
           final errorFactoryA = Exception('Factory A Boom!');
           NotificationHandler<SimpleNotification> factoryA() {
             throw errorFactoryA;
@@ -417,7 +403,7 @@ void main() {
 
           // Act & Assert
           await expectLater(
-            () => dispatcher.dispatch(
+            () => dispatcher.dispatch<SimpleNotification>(
               notification,
               registrations,
               correlationId: correlationId,
@@ -432,7 +418,6 @@ void main() {
             reason: 'Should throw AggregateException with the factory error',
           );
 
-          // Verify B was still attempted
           verifyNever(() => handlerA.handle(notification));
           verify(() => handlerB.handle(notification)).called(1);
         },
@@ -442,6 +427,7 @@ void main() {
         'should ensure handlers are executed in specified order before collecting errors',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test'); // Use plain class
           final errorB = Exception('Handler B Failed');
           when(() => handlerB.handle(notification)).thenThrow(errorB);
           final registrations = createRegs([
@@ -451,7 +437,8 @@ void main() {
 
           // Act & Assert
           await expectLater(
-            () => dispatcher.dispatch(
+            () => dispatcher.dispatch<SimpleNotification>(
+              // Call with type argument
               notification,
               registrations,
               correlationId: correlationId,
@@ -467,7 +454,6 @@ void main() {
                 'Should throw AggregateException containing only B\'s error',
           );
 
-          // Verify execution order was respected
           verifyInOrder([
             () => handlerB.handle(notification), // Attempted first
             () => handlerA.handle(notification), // Attempted second
@@ -481,13 +467,14 @@ void main() {
         'should pass the correct notification object to each handler',
         () async {
           // Arrange
+          const notification = SimpleNotification('Test');
           final registrations = createRegs([
             (factory: handlerAFactory, order: 0),
             (factory: handlerBFactory, order: 0),
           ]);
 
           // Act
-          await dispatcher.dispatch(
+          await dispatcher.dispatch<SimpleNotification>(
             notification,
             registrations,
             correlationId: correlationId,

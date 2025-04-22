@@ -28,7 +28,7 @@ class ProcessDataExportJobCommandParallel extends Request<String> {
 // --- Notifications ---
 
 // Base class for data to avoid repetition (optional)
-abstract class DataExportCompletedData extends Notification {
+abstract class DataExportCompletedData {
   final String jobId;
   final String userId;
   final String filePath; // Path to the exported file
@@ -38,7 +38,7 @@ abstract class DataExportCompletedData extends Notification {
 }
 
 // Notification for sequential handlers
-class DataExportCompletedNotificationSequential extends Notification
+class DataExportCompletedNotificationSequential
     implements DataExportCompletedData {
   @override
   final String jobId;
@@ -59,7 +59,7 @@ class DataExportCompletedNotificationSequential extends Notification
 }
 
 // Notification for parallel handlers
-class DataExportCompletedNotificationParallel extends Notification
+class DataExportCompletedNotificationParallel
     implements DataExportCompletedData {
   @override
   final String jobId;

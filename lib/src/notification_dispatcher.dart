@@ -6,7 +6,6 @@ import 'package:kyron/src/notification_order.dart';
 import 'package:logging/logging.dart';
 
 import 'exceptions.dart';
-import 'notification.dart';
 import 'notification_handler.dart';
 import 'registry.dart';
 
@@ -47,7 +46,7 @@ class NotificationDispatcher {
     this.errorStrategy = NotificationErrorStrategy.continueOnError,
   });
 
-  /// Dispatches a notification to registered handlers, supporting mixed parallel
+  /// Dispatches an event/message object to registered handlers, supporting mixed parallel
   /// and sequential execution based on the handler's registered order.
   /// Handles errors based on the configured [errorStrategy].
   ///
@@ -56,18 +55,19 @@ class NotificationDispatcher {
   /// 2. Sequential: Handlers with specific integer orders (excluding early/late parallel).
   /// 3. Late Parallel: Handlers with order [NotificationOrder.parallelLate].
   ///
-  /// - [notification]: The notification object to dispatch.
+  /// - [notification]: The event/message object of type [TNotification] to dispatch.
   /// - [handlerRegistrations]: The list of ALL handler registrations for the notification type.
   /// - [correlationId]: An identifier for tracing (optional, used for logging).
-  Future<void> dispatch(
-    Notification notification,
+  Future<void> dispatch<TNotification>(
+    TNotification notification,
     List<NotificationHandlerRegistration> handlerRegistrations, {
     int? correlationId,
   }) async {
     final notificationType = notification.runtimeType;
     final List<Object> collectedErrors = [];
     // Use hashCode if specific correlationId isn't provided for notifications
-    final effectiveCorrelationId = correlationId ?? notification.hashCode;
+    final effectiveCorrelationId =
+        correlationId ?? (notification?.hashCode ?? 0);
 
     if (handlerRegistrations.isEmpty) {
       _log.finer(
@@ -171,9 +171,9 @@ class NotificationDispatcher {
   }
 
   /// Executes a batch of notification handlers in parallel using Future.wait.
-  Future<void> _executeParallelBatch(
+  Future<void> _executeParallelBatch<TNotification>(
     List<NotificationHandlerRegistration> batchRegistrations,
-    Notification notification,
+    TNotification notification,
     int correlationId,
     List<Object> collectedErrors,
     String phaseName,
@@ -255,9 +255,9 @@ class NotificationDispatcher {
 
   /// Executes a batch of notification handlers sequentially, respecting their order.
   /// Returns true if dispatch should stop (e.g., for failFast), false otherwise.
-  Future<bool> _executeSequentialBatch(
+  Future<bool> _executeSequentialBatch<TNotification>(
     List<NotificationHandlerRegistration> batchRegistrations, // Assumed sorted
-    Notification notification,
+    TNotification notification,
     int correlationId,
     List<Object> collectedErrors,
   ) async {
